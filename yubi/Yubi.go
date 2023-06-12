@@ -5,7 +5,6 @@ import (
   "crypto/rand"
   "time"
   "errors"
-  //"fmt"
 )
 
 type YubiData struct {

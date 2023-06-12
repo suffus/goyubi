@@ -1,7 +1,7 @@
 package main
 
 import (
-    "yubi"
+    "github.com/suffus/goyubi/yubi"
     "flag"
     "fmt"
     "os"
