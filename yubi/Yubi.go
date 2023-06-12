@@ -8,25 +8,57 @@ import (
 )
 
 type YubiData struct {
+    /*
+     * Id is the number of the key
+       in this implementation it is also the name of the key
+     */
     Id  [6]byte
+    /*
+      This is the number of times the key has been powered up
+      and cannot be greater than 0x7fff due to compatability
+      reasons.
+    */
     UseCtr  [2]byte
+    /*
+      This is the time since the key has been plugged in measured
+      as about 8Hz (not critical).
+    */
     Timestamp [3]byte
+    /*
+      This is the number of codes that have been created this session.
+      If it overflows, then UseCtr is incremented.
+    */
     SessionCtr byte
+    /*
+      two random bytes
+    */
     Rnd [2]byte
+    /*
+      CRC16 checksum of bytes 0-13 of this structure
+    */
     Checksum [2]byte
+    /*
+      128 bit secret for AES-128.
+    */
     Secret [16]byte
 }
 
+/*
+  Create a new yubikey YubiData structure with known number and random AES key
+*/
 func New(id int) YubiData {
     yubi := YubiData{}
     copy(yubi.Id[:], encodeLE(id, 6))
-    rand.Read(yubi.Secret[:])
+    rand.Read(yubi.Secret[:])  // should be cryptographically secure
     yubi.incrementCounter()
     yubi.setTimestamp()
     yubi.setChecksum()
     return yubi
 }
 
+/*
+  Creates a new yubikey YubiData structure from 32 bytes in a buffer
+*/
 func FromBytes( buf []byte ) (YubiData, error) {
     yubi := YubiData{}
     copy(yubi.Id[:], buf[:6])
@@ -60,10 +92,16 @@ func decodeLE(bytes []byte) int {
     return rv
 }
 
+/*
+  Decode a byte array as a big-endian integer
+*/
 func DecodeBE(bytes []byte) int {
     return decodeBE(bytes)
 }
 
+/*
+  Encode an int bigendian style up to sz bytes
+*/
 func EncodeBE(val int, sz int) []byte {
     return encodeBE(val, sz)
 }
@@ -134,20 +172,12 @@ func (yubi *YubiData) checkChecksum( ) bool {
       return crc == 0xf0b8
 }
 
-func cpyb( arr []byte, offset int, cpy []byte ) {
-    copy(arr[offset:offset+len(cpy)], cpy)
-}
-
+/*
+  Return the byte value
+*/
 func (yubi *YubiData) AsBytes() []byte {
-    out := make([]byte, 32)
-    cpyb(out, 0, yubi.Id[:])
-    cpyb(out, 6, yubi.UseCtr[:])
-    cpyb(out, 8, yubi.Timestamp[:])
-    out[11] = yubi.SessionCtr
-    cpyb(out, 12, yubi.Rnd[:])
-    cpyb(out, 14, yubi.Checksum[:])
-    cpyb(out, 16, yubi.Secret[:])
-    return out
+    return append(yubi.Id[:], yubi.UseCtr[:]..., yubi.Timestamp[:]...,
+      yubi.SessionCtr, yubi.Rnd[:]..., yubi.Checksum[:]..., yubi.Secret[:]...)
 }
 
 func crc16(buf []byte) uint16 {
